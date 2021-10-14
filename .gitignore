@@ -104,5 +104,7 @@ dist
 .tern-port
 
 # Json config
+# exclude everything
+auth/*
 # exception to the rule
 !auth/.gitkeep 
