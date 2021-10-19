@@ -35,6 +35,65 @@ const db = admin.firestore();
 // Get a new write batch
 const batch = db.batch();
 
+csvBatchSend = async () => {
+  const files = await fs.promises.readdir(
+    path.resolve(__dirname, folder),
+    (err, files) => {
+      if (err) throw err;
+      return files;
+    }
+  );
+
+  const batchArray = [];
+  batchArray.push(batch);
+  let operationCounter = 0;
+  let batchIndex = 0;
+
+  for (const file of files) {
+    const extname = path.extname(file);
+    const filename = path.basename(file, extname);
+    const absolutePath = path.resolve(folder, file);
+
+    // Async / await usage
+    const jsonArray = await csv().fromFile(absolutePath);
+    // const len = jsonArray.length;
+    // const step =
+    //   len > batchSize * 500 ? batchSize * 500 : batchSize * 500 - len;
+    // const top = len > step + 500 ? len : step + 500;
+    for (let index = 0; index < jsonArray.length; index++) {
+      const wrRef = db.collection(filename.toLowerCase()).doc(`/${index + 1}/`);
+
+      const element = jsonArray[index];
+      var str = "{";
+      for (item in element) {
+        str += `"${item.toString().toLowerCase()}": ${element[item]}`;
+        if (
+          item.toString().toLowerCase() !=
+          Object.keys(element).pop().toLowerCase()
+        )
+          str += ", ";
+      }
+      str += "}";
+      //console.log(`${filename.toLowerCase()}\n${str}`);
+      // await batch.set(wrRef, JSON.parse(str));
+
+      batchArray[batchIndex].set(wrRef, JSON.parse(str));
+      operationCounter++;
+
+      if (operationCounter === 499) {
+        batchArray.push(batch);
+        batchIndex++;
+        operationCounter = 0;
+      }
+    }
+  }
+
+  return batchArray;
+
+  //batchArray.forEach(async (batch) => await batch.commit());
+  //await batch.commit();
+};
+
 // create
 app.post("/api/write", (req, res) => {
   (async () => {
@@ -56,68 +115,117 @@ app.post("/api/write", (req, res) => {
       //   console.log(contents)
       // }));
 
-      await fs.promises.readdir(
-        path.resolve(__dirname, folder),
-        (err, files) => {
-          if (err) throw err;
+      // async function printFiles() {
+      //   const files = await getFilePaths();
 
-          for (let file of files) {
-            const extname = path.extname(file);
-            const filename = path.basename(file, extname);
-            const absolutePath = path.resolve(folder, file);
+      //   for (const file of files) {
+      //     const contents = await fs.readFile(file, "utf8");
+      //     console.log(contents);
+      //   }
+      // }
 
-            // Async / await usage
-            const jsonArray = csv().fromFile(absolutePath);
-            for (let index = 0; index < 1; index++) {
-              const wrRef = db
-                .collection(filename.toLowerCase())
-                .doc(`/${index + 1}/`);
+      // const files = await fs.promises.readdir(
+      //   path.resolve(__dirname, folder),
+      //   (err, files) => {
+      //     if (err) throw err;
+      //     return files;
+      //   }
+      // );
 
-              const element = jsonArray[index];
-              var str = "{";
-              for (item in element) {
-                str += `"${item.toString().toLowerCase()}": ${element[item]}`;
-                if (
-                  item.toString().toLowerCase() !=
-                  Object.keys(element).pop().toLowerCase()
-                )
-                  str += ", ";
-              }
-              str += "}";
-              console.log(`${filename.toLowerCase()}\n${str}`);
-              batch.set(wrRef, JSON.parse(str));
-            }
+      // const promises = files.map(async (file) => {
+      //   const extname = path.extname(file);
+      //   const filename = path.basename(file, extname);
+      //   const absolutePath = path.resolve(folder, file);
 
-            // csv()
-            //   .fromFile(absolutePath)
-            //   .then((jsonObj) => {
-            //     for (let index = 0; index < 1; index++) {
-            //       const wrRef = db
-            //         .collection(filename.toLowerCase())
-            //         .doc(`/${index + 1}/`);
+      //   // Async / await usage
+      //   const jsonArray = await csv().fromFile(absolutePath);
+      //   for (let index = 0; index < 1; index++) {
+      //     const wrRef = db
+      //       .collection(filename.toLowerCase())
+      //       .doc(`/${index + 1}/`);
 
-            //       const element = jsonObj[index];
-            //       var str = "{";
-            //       for (item in element) {
-            //         str += `"${item.toString().toLowerCase()}": ${
-            //           element[item]
-            //         }`;
-            //         if (
-            //           item.toString().toLowerCase() !=
-            //           Object.keys(element).pop().toLowerCase()
-            //         )
-            //           str += ", ";
-            //       }
-            //       str += "}";
-            //       console.log(`${filename.toLowerCase()}\n${str}`);
-            //       batch.set(wrRef, JSON.parse(str));
-            //     }
-            //   });
-          }
-        }
-      );
+      //     const element = jsonArray[index];
+      //     var str = "{";
+      //     for (item in element) {
+      //       str += `"${item.toString().toLowerCase()}": ${element[item]}`;
+      //       if (
+      //         item.toString().toLowerCase() !=
+      //         Object.keys(element).pop().toLowerCase()
+      //       )
+      //         str += ", ";
+      //     }
+      //     str += "}";
+      //     console.log(`${filename.toLowerCase()}\n${str}`);
+      //     await batch.set(wrRef, JSON.parse(str));
+      //   }
+      // });
 
-      await batch.commit();
+      barr = await csvBatchSend();
+      barr.forEach(async (bt) => await bt.commit());
+      //await csvBatchSend();
+
+      // const promises = fs.promises.readdir(
+      //   path.resolve(__dirname, folder),
+      //   (err, files) => {
+      //     if (err) throw err;
+
+      //     for (let file of files) {
+      //       const extname = path.extname(file);
+      //       const filename = path.basename(file, extname);
+      //       const absolutePath = path.resolve(folder, file);
+
+      //       // Async / await usage
+      //       const jsonArray = csv().fromFile(absolutePath);
+      //       for (let index = 0; index < 1; index++) {
+      //         const wrRef = db
+      //           .collection(filename.toLowerCase())
+      //           .doc(`/${index + 1}/`);
+
+      //         const element = jsonArray[index];
+      //         var str = "{";
+      //         for (item in element) {
+      //           str += `"${item.toString().toLowerCase()}": ${element[item]}`;
+      //           if (
+      //             item.toString().toLowerCase() !=
+      //             Object.keys(element).pop().toLowerCase()
+      //           )
+      //             str += ", ";
+      //         }
+      //         str += "}";
+      //         console.log(`${filename.toLowerCase()}\n${str}`);
+      //         batch.set(wrRef, JSON.parse(str));
+      //       }
+
+      //       // csv()
+      //       //   .fromFile(absolutePath)
+      //       //   .then((jsonObj) => {
+      //       //     for (let index = 0; index < 1; index++) {
+      //       //       const wrRef = db
+      //       //         .collection(filename.toLowerCase())
+      //       //         .doc(`/${index + 1}/`);
+
+      //       //       const element = jsonObj[index];
+      //       //       var str = "{";
+      //       //       for (item in element) {
+      //       //         str += `"${item.toString().toLowerCase()}": ${
+      //       //           element[item]
+      //       //         }`;
+      //       //         if (
+      //       //           item.toString().toLowerCase() !=
+      //       //           Object.keys(element).pop().toLowerCase()
+      //       //         )
+      //       //           str += ", ";
+      //       //       }
+      //       //       str += "}";
+      //       //       console.log(`${filename.toLowerCase()}\n${str}`);
+      //       //       batch.set(wrRef, JSON.parse(str));
+      //       //     }
+      //       //   });
+      //     }
+      //   }
+      // );
+
+      //await batch.commit();
       // };
       // const fresult = await Promise.all(promises);
 

@@ -27,6 +27,7 @@ const save_as_json = () => {
       csv()
         .fromFile(absolutePath)
         .then((jsonObj) => {
+          console.log(`LENGTH: ${jsonObj.length}`);
           for (let index = 0; index < 1; index++) {
             const element = jsonObj[index];
             var str = "{";
