@@ -49,6 +49,20 @@ const storage = new Storage();
 // The ID of your GCS bucket
 // const bucketName = 'your-unique-bucket-name';
 
+app.get("/api/good-morning", (req, res) => {
+  console.log("GOOD MORNING");
+  return res.status(200).send("Hello World!");
+});
+
+async function streamToString(stream) {
+  const chunks = [];
+  return new Promise((resolve, reject) => {
+    stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    stream.on("error", (err) => reject(err));
+    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+  });
+}
+
 //-
 // <h4>Downloading a File</h4>
 //
@@ -58,15 +72,15 @@ const storage = new Storage();
 //-
 async function readStream(fileName, bucketName) {
   // const [files] =
-  //const stream =
-  await storage
+  const stream = await storage
     .bucket(bucketName)
     .file(fileName)
-    .createReadStream()
-    .on("end", function (data) {
-      return data;
-      // The file is fully downloaded.
-    }); // fs.createWriteStream("../wd/ts.json")
+    .createReadStream();
+  return stream;
+  // .on("end", function (data) {
+  //   return data;
+  //   // The file is fully downloaded.
+  // }); // fs.createWriteStream("../wd/ts.json")
 
   // res = [];
   // await new Promise((resolve, reject) => {
@@ -97,15 +111,15 @@ app.get("/api/files-read-stream", (req, res) => {
       // console.log(`FILE NAME: ${req.query.file_name}`);
       // let stream = await readStream(req.query.file_name, req.query.bucket_name);
       let stream = await readStream(req.query.file_name, req.query.bucket_name);
-
-      // ob = JSON.stringify(stream);
-      // console.log(`LENGTH: ${ob.length}`);
-      // for (let index = 0; index < 1; index++) {
-      //   const element = ob[index];
-      //   for (item in element) {
-      //     console.log(`${item.toString().toLowerCase()}: ${element[item]}`);
-      //   }
-      // }
+      const result = await streamToString(stream);
+      ob = JSON.parse(result);
+      console.log(`LENGTH: ${ob.length}`);
+      for (let index = 0; index < 1; index++) {
+        const element = ob[index];
+        for (item in element) {
+          console.log(`${item.toString().toLowerCase()}: ${element[item]}`);
+        }
+      }
 
       // stream.on("connect", function () {
       //   console.log(`<=== Connection connected ===>`);
@@ -131,7 +145,7 @@ app.get("/api/files-read-stream", (req, res) => {
       // }
 
       //let response = JSON.stringify(stream);
-      return res.status(200).send(stream);
+      return res.status(200).send(result);
     } catch (error) {
       console.log(error);
       return res.status(500).send(error);
@@ -366,6 +380,71 @@ csvBatchSend = async () => {
   //await batch.commit();
 };
 
+jsonBatchSend = async (jsonObj, collectionName) => {
+  // jsonObj = JSON.parse(obj);
+  // console.log(`JSON SIZE: ${jsonObj.length}`);
+  const batchArray = [];
+  batchArray.push(db.batch());
+  let operationCounter = 0;
+  let batchIndex = 0;
+
+  // const len = jsonArray.length;
+  // const step =
+  //   len > batchSize * 500 ? batchSize * 500 : batchSize * 500 - len;
+  // const top = len > step + 500 ? len : step + 500;
+  for (let index = 0; index < jsonObj.length; index++) {
+    const wrRef = db.collection(collectionName).doc(`/${index + 1}/`);
+
+    const element = jsonObj[index];
+    // var str = "{";
+    // for (item in element) {
+    //   str += `"${item.toString().toLowerCase()}": ${element[item]}`;
+    //   if (
+    //     item.toString().toLowerCase() !=
+    //     Object.keys(element).pop().toLowerCase()
+    //   )
+    //     str += ", ";
+    // }
+    // str += "}";
+
+    // batchArray[batchIndex].set(wrRef, JSON.parse(str));
+    batchArray[batchIndex].set(wrRef, element);
+    operationCounter++;
+
+    if (operationCounter === 500) {
+      batchArray.push(db.batch());
+      batchIndex++;
+      operationCounter = 0;
+    }
+  }
+
+  return batchArray;
+};
+
+app.get("/api/batch-storage-to-firestore", (req, res) => {
+  (async () => {
+    try {
+      // console.log(
+      //   `FILE NAME: ${req.query.file_name} BUCKET NAME: ${req.query.bucket_name}`
+      // );
+      let stream = await readStream(req.query.file_name, req.query.bucket_name);
+      const result = await streamToString(stream);
+      jsonObj = JSON.parse(result);
+
+      barr = await jsonBatchSend(jsonObj, req.query.file_name);
+      const promises = barr.map(async (bt) => {
+        await bt.commit();
+      });
+      await Promise.all(promises);
+
+      return res.status(200).send(result);
+    } catch (error) {
+      console.log(error);
+      return res.status(500).send(error);
+    }
+  })();
+});
+
 // create
 app.post("/api/write", (req, res) => {
   (async () => {
@@ -437,6 +516,7 @@ app.post("/api/write", (req, res) => {
         await bt.commit();
       });
       await Promise.all(promises);
+
       //barr.forEach(async (bt) => await bt.commit());
 
       //await csvBatchSend();
