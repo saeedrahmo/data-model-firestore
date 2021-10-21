@@ -51,7 +51,7 @@ const save_as_json = () => {
               // );
             }
             str += "}";
-            console.log(str);
+            //console.log(str);
           }
 
           //   var array = jsonObj[20];
@@ -77,18 +77,18 @@ const save_as_json = () => {
 
           //   console.log(`Json object size: ${JSON.stringify(jsonObj[0])}`);
 
-          //   fs.writeFile(
-          //     path.join(folder, filename + ".json"),
-          //     JSON.stringify(jsonObj),
-          //     "utf8",
-          //     function (err) {
-          //       if (err) {
-          //         return console.log(err);
-          //       }
+          fs.writeFile(
+            path.join(folder, filename + ".json"),
+            JSON.stringify(jsonObj),
+            "utf8",
+            function (err) {
+              if (err) {
+                return console.log(err);
+              }
 
-          //       console.log("The file was saved!");
-          //     }
-          //   );
+              console.log("The file was saved!");
+            }
+          );
         });
     }
   });
