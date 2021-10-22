@@ -104,6 +104,71 @@ async function readStream(fileName, bucketName) {
   // return res;
 }
 
+app.post("/api/rfw", (req, res) => {
+  (async () => {
+    try {
+      // const wd = db.collection(req.query.file_name).doc(req.query.record_id);
+      // const doc = await wd.select("CPUUtilization_Average").get();
+      // console.log(doc);
+      //    console.log(req.body.benchmark_type);
+      //    let collectionRef = db.collection("DVD-testing.json");
+      // .where("NetworkOut_Average", ">", 5);
+      //  let documentRef = collectionRef.doc("5"); //req.body.workload_metric
+      //let doc = await documentRef.select("NetworkOut_Average").get();
+      //   let doc = await collectionRef
+      //    .doc("10")
+      //.where("NetworkOut_Average", ">", 5)
+      // .select("NetworkOut_Average")
+      // .get();
+      // return documentRef
+      //   .set({ x: 10, y: 5 })
+      //   .then(() => {
+      //     return collectionRef.where("x", ">", 5).select("y").get();
+      //   })
+      //   .then((res) => {
+      //     console.log(`y is ${res.docs[0].get("y")}.`);
+      //   });
+
+      const snapshot = await db
+        .collection(req.body.benchmark_type)
+        .where("type", "==", req.body.data_type)
+        .where("id", ">=", req.body.batch_unit * req.body.batch_id)
+        .where(
+          "id",
+          "<",
+          req.body.batch_unit * (req.body.batch_id + req.body.batch_size)
+        )
+        .select(req.body.workload_metric)
+        //.select("id")
+        .get();
+      const docs = [];
+      snapshot.docs.map((doc) => docs.push(doc.data()));
+
+      replyObj = new Object();
+      //replyObj.key = "rfw_id";
+      replyObj["rfw_id"] = req.body.rfw_id;
+      replyObj["last_batch_id"] = req.body.batch_id + req.body.batch_size - 1;
+      replyObj["data"] = docs;
+      //console.log(replyObj);
+      // var reply = {
+      //   rfw_id: req.body.rfw_id,
+      //   last_batch_id: req.body.batch_id + req.body.batch_size - 1,
+      //   data: docs,
+      // };
+      // replyObj = JSON.parse(reply);
+      // rfw_id=req.body.rfw_id
+      // last_batch_id=(req.body.batch_id+req.body.batch_size)-1
+      // data=docs
+
+      return res.status(200).send(JSON.stringify(replyObj));
+      //.send(doc.exists ? docs : "No such document!");
+    } catch (error) {
+      console.log(error);
+      return res.status(500).send(error);
+    }
+  })();
+});
+
 app.get("/api/files-read-stream", (req, res) => {
   (async () => {
     try {
@@ -380,7 +445,7 @@ csvBatchSend = async () => {
   //await batch.commit();
 };
 
-jsonBatchSend = async (jsonObj, collectionName) => {
+jsonBatchSend = async (jsonObj, documentName, collectionName) => {
   // jsonObj = JSON.parse(obj);
   // console.log(`JSON SIZE: ${jsonObj.length}`);
   const batchArray = [];
@@ -393,22 +458,25 @@ jsonBatchSend = async (jsonObj, collectionName) => {
   //   len > batchSize * 500 ? batchSize * 500 : batchSize * 500 - len;
   // const top = len > step + 500 ? len : step + 500;
   for (let index = 0; index < jsonObj.length; index++) {
-    const wrRef = db.collection(collectionName).doc(`/${index + 1}/`);
+    const wrRef = db
+      .collection(collectionName)
+      .doc(`/${documentName}${index + 1}/`);
 
     const element = jsonObj[index];
-    // var str = "{";
-    // for (item in element) {
-    //   str += `"${item.toString().toLowerCase()}": ${element[item]}`;
-    //   if (
-    //     item.toString().toLowerCase() !=
-    //     Object.keys(element).pop().toLowerCase()
-    //   )
-    //     str += ", ";
-    // }
-    // str += "}";
+    var str = "{";
+    for (item in element) {
+      str += `"${item.toString().toLowerCase()}": ${element[item]}`;
+      if (
+        item.toString().toLowerCase() !=
+        Object.keys(element).pop().toLowerCase()
+      )
+        str += ", ";
+    }
+    str += `,"type": "${documentName}","id": ${index + 1}`;
+    str += "}";
 
-    // batchArray[batchIndex].set(wrRef, JSON.parse(str));
-    batchArray[batchIndex].set(wrRef, element);
+    batchArray[batchIndex].set(wrRef, JSON.parse(str));
+    // batchArray[batchIndex].set(wrRef, element);
     operationCounter++;
 
     if (operationCounter === 500) {
@@ -431,7 +499,11 @@ app.get("/api/batch-storage-to-firestore", (req, res) => {
       const result = await streamToString(stream);
       jsonObj = JSON.parse(result);
 
-      barr = await jsonBatchSend(jsonObj, req.query.file_name);
+      barr = await jsonBatchSend(
+        jsonObj,
+        req.query.document_name,
+        req.query.collection_name
+      );
       const promises = barr.map(async (bt) => {
         await bt.commit();
       });
