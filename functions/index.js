@@ -49,9 +49,29 @@ const storage = new Storage();
 // The ID of your GCS bucket
 // const bucketName = 'your-unique-bucket-name';
 
-app.get("/api/good-morning", (req, res) => {
-  console.log("GOOD MORNING");
-  return res.status(200).send("Hello World!");
+app.get("/api/v1/good-morning", (req, res) => {
+  const bucket = storage.bucket(req.query.bucket_name);
+  const file = bucket.file(req.query.file_name);
+  const publicUrl = file.publicUrl();
+  return res.status(200).send(publicUrl);
+});
+
+app.get("/api/get-public-url", (req, res) => {
+  () => {
+    try {
+      console.log(req.query.bucket_name);
+      console.log(req.query.file_name);
+      const bucket = storage.bucket(req.query.bucket_name);
+      const file = bucket.file(req.query.file_name);
+      const publicUrl = file.publicUrl();
+
+      console.log(publicUrl);
+      return res.status(200).send(publicUrl);
+    } catch (error) {
+      console.log(error);
+      return res.status(500).send(error);
+    }
+  };
 });
 
 async function streamToString(stream) {
@@ -104,7 +124,32 @@ async function readStream(fileName, bucketName) {
   // return res;
 }
 
-app.post("/api/rfw", (req, res) => {
+app.post("/api/rwf2", (req, res) => {
+  (async () => {
+    try {
+      const snapshot = await db
+        .collection(req.body.benchmark_type)
+        .where("type", "==", req.body.data_type)
+        .where("id", "==", 1)
+        .get();
+      const docs = [];
+      snapshot.docs.map((doc) => docs.push(doc.data()));
+
+      replyObj = new Object();
+      //replyObj.key = "rfw_id";
+      replyObj["rfw_id"] = req.body.rfw_id;
+      replyObj["last_batch_id"] = req.body.batch_id + req.body.batch_size - 1;
+      replyObj["data"] = docs;
+
+      return res.status(200).send(JSON.stringify(docs));
+    } catch (error) {
+      console.log(error);
+      return res.status(500).send(error);
+    }
+  })();
+});
+
+app.post("/api/v1/batch", (req, res) => {
   (async () => {
     try {
       // const wd = db.collection(req.query.file_name).doc(req.query.record_id);
@@ -139,7 +184,6 @@ app.post("/api/rfw", (req, res) => {
           req.body.batch_unit * (req.body.batch_id + req.body.batch_size)
         )
         .select(req.body.workload_metric)
-        //.select("id")
         .get();
       const docs = [];
       snapshot.docs.map((doc) => docs.push(doc.data()));
