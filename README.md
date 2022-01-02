@@ -26,3 +26,7 @@ Easy fix. Inside your package.json change
 
 # Screenshots
 ![Screenshot](https://github.com/saeedrahmo/coen424-assignment-1/blob/main/screenshots/firebase-model.png?raw=true "Server-side data model")
+![Screenshot](https://github.com/saeedrahmo/coen424-assignment-1/blob/main/screenshots/firebase-functions.png?raw=true "Firebase functions")
+![Screenshot](https://github.com/saeedrahmo/coen424-assignment-1/blob/main/screenshots/google-cloud-autoscaling.png?raw=true "Google cloud platform autoscaling configuration")
+![Screenshot](https://github.com/saeedrahmo/coen424-assignment-1/blob/main/screenshots/server-code-run.png?raw=true "Running server-side code")
+![Screenshot](https://github.com/saeedrahmo/coen424-assignment-1/blob/main/screenshots/postman.png?raw=true "Sending client-side query")
